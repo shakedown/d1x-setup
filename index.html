@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D1x Shifter Setup</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--fg:#1b1d21;--mut:#6b7280;--line:#e3e5e9;--acc:#e8641b;--acc2:#fff;--ok:#1f9d55;--bad:#d64545;--btn:#eceef2}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--card:#1c1f24;--fg:#eceef1;--mut:#9aa1ab;--line:#2c3038;--btn:#2a2e35}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.35rem;margin:4px 0 2px}
+h2{font-size:1.05rem;margin:0 0 10px}
+.sub{color:var(--mut);font-size:.9rem;margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin:0 0 14px}
+button{font:inherit;border:0;border-radius:10px;padding:12px 14px;background:var(--btn);color:var(--fg);cursor:pointer;min-height:46px}
+button.pri{background:var(--acc);color:var(--acc2);font-weight:600}
+button.warn{background:var(--bad);color:#fff}
+button:disabled{opacity:.4;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>button{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px}
+.k{color:var(--mut);font-size:.85rem}.v{font-weight:600}
+.big{font-size:2.6rem;font-weight:700;text-align:center;line-height:1.1}
+.gearbar{display:flex;gap:4px;margin:10px 0}
+.gearbar span{flex:1;height:10px;border-radius:3px;background:var(--line)}
+.gearbar span.on{background:var(--acc)}.gearbar span.set{background:var(--mut)}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-size:.8rem;background:var(--btn)}
+.pill.ok{background:var(--ok);color:#fff}
+label.set{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+label.set:first-of-type{border-top:0}
+input[type=range]{width:100%}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
+select,input[type=number]{font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.note{background:color-mix(in srgb,var(--acc) 12%,transparent);border-left:3px solid var(--acc);padding:10px 12px;border-radius:6px;font-size:.92rem;margin:10px 0}
+details>summary{cursor:pointer;font-weight:600;padding:4px 0}
+#log{font:12px/1.4 ui-monospace,Consolas,monospace;white-space:pre-wrap;max-height:220px;overflow:auto;background:var(--bg);padding:8px;border-radius:8px;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:left}
+.hide{display:none!important}
+.step{font-size:.8rem;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<main>
+<h1>D1x Shifter Setup</h1>
+<p class="sub">An independent replacement for the Archer Components app. It needs Chrome on Android, Windows, Mac or Linux.</p>
+
+<div class="card" id="cConnect">
+  <div class="row"><button class="pri" id="btnConnect">Connect to shifter</button><button id="btnDisconnect" class="hide">Disconnect</button></div>
+  <p class="sub" style="margin:10px 0 0" id="connState">Not connected. Turn the shifter on, then tap Connect.</p>
+  <label class="set" style="border:0;padding:6px 0 0"><span class="k">Show all Bluetooth devices (use this if your shifter isn't listed)</span><input type="checkbox" id="optAll"></label>
+  <p id="noBt" class="note hide">This browser doesn't support Web Bluetooth. Open this page in Chrome. On Android, the page has to be opened from an https:// address.</p>
+</div>
+
+<div id="ui" class="hide">
+
+<div class="card">
+  <h2>Status</h2>
+  <div class="grid2">
+    <div><div class="k">Shifter battery</div><div class="v" id="sBattS">–</div></div>
+    <div><div class="k">Remote battery</div><div class="v" id="sBattR">–</div></div>
+    <div><div class="k">Shifter firmware</div><div class="v" id="sFwS">–</div></div>
+    <div><div class="k">Remote firmware</div><div class="v" id="sFwR">–</div></div>
+    <div><div class="k">Battery voltage</div><div class="v" id="sVolt">–</div></div>
+    <div><div class="k">Gears configured</div><div class="v" id="sGears">–</div></div>
+  </div>
+  <div class="row" style="margin-top:12px"><button id="btnRefresh">Refresh</button></div>
+</div>
+
+<div class="card" id="cWizard">
+  <h2>New setup (first-time install or new cassette)</h2>
+  <div id="wz0">
+    <p class="sub">This sets the number of gears and walks you through setting the position of every gear. Put the bike on a stand so you can turn the cranks.</p>
+    <button class="pri" id="wzStart">Start new setup</button>
+  </div>
+  <div id="wz1" class="hide">
+    <div class="step">Step 1 of 4</div>
+    <p>Loosen the shift cable at the derailleur and make sure the chain is on the <b>smallest cog</b>.</p>
+    <label class="set"><span>Number of gears</span><input type="number" id="wzGears" min="1" max="20" value="11" style="width:80px"></label>
+    <div class="row"><button id="wzCancel1">Cancel</button><button class="pri" id="wz1Next">Next</button></div>
+  </div>
+  <div id="wz2" class="hide">
+    <div class="step">Step 2 of 4</div>
+    <p>Moving the motor to its starting position.</p>
+    <p><b>Pull the shift cable finger-tight and tighten the anchor bolt.</b></p>
+    <div class="row"><button id="wzReinit">Move motor to start again</button><button class="pri" id="wz2Next">Done, next</button></div>
+  </div>
+  <div id="wz3" class="hide">
+    <div class="step">Step 3 of 4</div>
+    <p>Use the <b>Shift points</b> card below. Start on gear 1 and adjust until the chain runs quietly on the cog. Then tap <b>Gear +</b>. Each new gear starts at the previous gear's position, so pull cable until it shifts and runs quietly. Repeat up to the top gear.</p>
+    <p class="sub">Every adjustment is saved on the shifter straight away.</p>
+    <button class="pri" id="wz3Done">I've set every gear</button>
+  </div>
+  <div id="wz4" class="hide">
+    <div class="step">Step 4 of 4</div>
+    <p>Done. Shift through all the gears with the remote while turning the cranks to check them. Make a backup in <b>All gear positions</b> so you can restore these settings later.</p>
+    <button id="wzClose">Close</button>
+  </div>
+</div>
+
+<div class="card" id="cTune">
+  <h2>Shift points</h2>
+  <div class="row" style="justify-content:space-between"><span class="k">Gear</span><span class="pill" id="tMode">Adjusting</span></div>
+  <div class="big"><span id="tGear">–</span><span style="font-size:1.2rem;color:var(--mut)"> / <span id="tNum">–</span></span></div>
+  <div class="gearbar" id="tBar"></div>
+  <div class="row"><button id="gDown">− Gear</button><button id="gUp">Gear +</button></div>
+  <div style="margin:16px 0 4px" class="k">Cable position for this gear (0 = fully released)</div>
+  <div class="big" id="tPos">–</div>
+  <div class="row" style="margin-top:8px">
+    <button data-adj="r20" title="Release 20">« −20</button>
+    <button data-adj="r5" title="Release 5">‹ −5</button>
+    <button data-adj="p5" title="Pull 5">+5 ›</button>
+    <button data-adj="p20" title="Pull 20">+20 »</button>
+  </div>
+  <p class="sub" style="margin:8px 0 0">+ pulls cable, which moves the chain toward the bigger cogs. − releases cable, toward the smaller cogs. The ±5 buttons approach the new position from the opposite side to take up slack, just like the original app.</p>
+</div>
+
+<div class="card">
+  <h2>Settings</h2>
+  <label class="set"><span>Reverse shift buttons</span><input type="checkbox" id="setReverse"></label>
+  <label class="set"><span>Get-me-home gear<br><span class="k">When the battery is about to run out, the shifter moves to this gear</span></span><select id="setHome"></select></label>
+  <label class="set" style="display:block"><span>Auto shutdown: <b id="lblAsd">–</b> min</span><input type="range" id="setAsd" min="1" max="179"></label>
+  <label class="set" style="display:block" id="rowWake"><span>Wake-up force: <b id="lblWake">–</b> <span class="k">(5000 light … 25000 hard)</span></span><input type="range" id="setWake" min="5000" max="25000" step="500"></label>
+  <div class="row" style="margin-top:6px"><button id="btnSaveAsd">Save shutdown/wake settings</button></div>
+  <label class="set hide" id="rowLpm"><span>Low power mode</span><input type="checkbox" id="setLpm"></label>
+</div>
+
+<div class="card">
+  <h2>Quick shift</h2>
+  <p class="sub">Hold a button to shift several gears at once.</p>
+  <label class="set"><span>Enabled</span><input type="checkbox" id="qsOn"></label>
+  <label class="set" style="display:block"><span>Hold delay: <b id="lblQsDelay">–</b> ms</span><input type="range" id="qsDelay" min="200" max="600" step="50"></label>
+  <label class="set"><span>Gears per quick shift: up</span><select id="qsUp"></select></label>
+  <label class="set"><span>Gears per quick shift: down</span><select id="qsDown"></select></label>
+</div>
+
+<div class="card" id="cOvershoot">
+  <h2>Overshoot</h2>
+  <p class="sub">The motor goes past each shift point and comes back after a short delay. This can help with a worn cassette or chain. Test it on the stand first.</p>
+  <label class="set"><span>Enabled</span><input type="checkbox" id="osOn"></label>
+  <label class="set" style="display:block"><span>Downshift distance: <b id="lblOsDD">–</b></span><input type="range" id="osDD" min="0" max="60" step="5"></label>
+  <label class="set" style="display:block"><span>Downshift delay: <b id="lblOsDT">–</b> ms</span><input type="range" id="osDT" min="0" max="600" step="50"></label>
+  <label class="set" style="display:block"><span>Upshift distance: <b id="lblOsUD">–</b></span><input type="range" id="osUD" min="0" max="60" step="5"></label>
+  <label class="set" style="display:block"><span>Upshift delay: <b id="lblOsUT">–</b> ms</span><input type="range" id="osUT" min="0" max="600" step="50"></label>
+</div>
+
+<div class="card">
+  <h2>All gear positions (backup and restore)</h2>
+  <p class="sub">Reading shifts the derailleur through every gear, so do it on the stand while turning the cranks.</p>
+  <div class="row"><button id="btnReadAll">Read all gears</button><button id="btnExport" disabled>Save backup file</button><button id="btnImport">Restore from file</button></div>
+  <input type="file" id="fileImport" accept=".json,application/json" class="hide">
+  <table id="tblGears" style="margin-top:10px"></table>
+</div>
+
+<div class="card">
+  <h2>Maintenance</h2>
+  <details><summary>Change shifter cable</summary>
+    <p>Loosen the cable at the derailleur or take the chain off first. The motor moves to the fully released position so you can swap the cable. When you tap Finished, it goes back to its saved position.</p>
+    <div class="row"><button id="cabStart">Release for cable change</button><button class="pri hide" id="cabDone">Finished</button></div>
+  </details>
+  <details><summary>Pair remote</summary>
+    <p>Firmware 1.x: the shifter restarts automatically, then you turn on the remote. Older firmware: the shifter turns off. Turn it on, then turn on the remote. When the remote's orange light flashes, pairing is done. This disconnects the page.</p>
+    <button class="warn" id="btnPair">Start remote pairing</button>
+  </details>
+  <details><summary>Ride metrics</summary>
+    <div class="grid2" style="margin-top:8px">
+      <div><div class="k">Shifts since reset</div><div class="v" id="mShifts">–</div></div>
+      <div><div class="k">Total shifts</div><div class="v" id="mOdo">–</div></div>
+      <div><div class="k">Last reset</div><div class="v" id="mDate">–</div></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button id="mRead">Read</button><button id="mReset">Reset counter</button></div>
+  </details>
+</div>
+
+</div>
+
+<div class="card">
+  <details><summary>Technical log</summary><div id="log"></div></details>
+</div>
+</main>
+
+<script>
+// ---- Protocol (recovered from Archer Components app v2.0.1) ----
+const SVC = '0001a000-8808-6b4c-27cf-5b4fc0000000';
+const U = id => `0001${id}-8808-6b4c-27cf-5b4fc0000000`.toLowerCase();
+const CH = {
+  NumGears:['a001','u8'], CurrentGear:['a002','u8'], CurrentPWM:['a003','i16'],
+  HomeGear:['a007','u8'], Mode:['a008','u8'], BattRemote:['a009','u8'], BattShifter:['a00a','u8'],
+  AutoShutDown:['a00b','u8'], SwitchOrder:['a00c','u8'], ShiftCounter:['a00d','i32'], LowPowerMode:['a00e','u8'],
+  OvershootDownDistance:['a010','u8'], OvershootDownDelay:['a011','i16'], OvershootUpDistance:['a012','u8'],
+  OvershootUpDelay:['a013','i16'], OvershootEnable:['a014','u8'], ShiftBatteryVoltage:['a015','i16'],
+  QuickShiftState:['a016','u8'], QuickShiftUp:['a017','u8'], QuickShiftDelay:['a018','i16'], QuickShiftDown:['a01a','u8'],
+  ShifterFirmwareVersion:['a01b','str'], RemoteFirmwareVersion:['a01c','str'], LastResetDate:['a01d','date'],
+  Odometer:['a01e','i32'], MotionThreshold:['a01f','i16'],
+};
+const uuidOf = k => k==='RemoteFirmwareVersion' ? '0000a01c-0000-1000-8000-00805f9b34fb' : U(CH[k][0].toUpperCase());
+const PWM_MIN=1000, PWM_MAX=2000;
+
+let dev=null, chars={}, st={}, queue=Promise.resolve(), wizard=null, cable=null, backup=null;
+const $=id=>document.getElementById(id);
+const log=m=>{const l=$('log'); l.textContent+=new Date().toLocaleTimeString()+'  '+m+'\n'; l.scrollTop=l.scrollHeight;};
+const hex=dv=>[...new Uint8Array(dv.buffer||dv)].map(b=>b.toString(16).padStart(2,'0')).join(' ');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// GATT operations must run strictly one at a time
+const q=fn=>(queue=queue.then(fn,fn));
+
+function enc(type,v){
+  if(type==='u8') return new Uint8Array([v&255]);
+  if(type==='i16'){const b=new DataView(new ArrayBuffer(2)); b.setInt16(0,v,false); return b.buffer;}
+  if(type==='i32'){const b=new DataView(new ArrayBuffer(4)); b.setInt32(0,v,false); return b.buffer;}
+  if(type==='date'){const d=v,p=n=>String(n).padStart(2,'0'); return new TextEncoder().encode(p(d.getFullYear()%100)+p(d.getMonth()+1)+p(d.getDate()));}
+}
+function dec(key,type,dv){
+  const a=new Uint8Array(dv.buffer,dv.byteOffset,dv.byteLength);
+  const need={i16:2,i32:4}[type];
+  if(need && a.length<need){ const p=new Uint8Array(need); p.set(a,need-a.length); dv=new DataView(p.buffer); }
+  if(type==='u8') return a[0];
+  if(type==='i16') return dv.getInt16(0,false);
+  if(type==='i32'){const v=dv.getInt32(0,false); return v===-1?0:v;}
+  if(type==='str'){
+    if(key==='RemoteFirmwareVersion' && a.length===5 && a[0]===48 && a.slice(1).every(x=>x===255)) return 'No paired remote';
+    return 'v'+new TextDecoder('latin1').decode(a).replace(/\0/g,'');
+  }
+  if(type==='date'){const s=new TextDecoder().decode(a); if(s==='000000') return null; return `20${s.slice(0,2)}-${s.slice(2,4)}-${s.slice(4,6)}`;}
+}
+function read(key){
+  return q(async()=>{
+    const c=chars[key]; if(!c){log('missing '+key); return undefined;}
+    try{
+      const dv=await c.readValue(); const v=dec(key,CH[key][1],dv);
+      st[key]=v; log(`R ${key} = ${v}  [${hex(dv)}]`); render(); return v;
+    }catch(e){ log(`ERR reading ${key}: ${e.message}`); return st[key]; }
+  });
+}
+function write(key,v){
+  return q(async()=>{
+    const c=chars[key]; if(!c){log('missing '+key); return;}
+    const data=enc(CH[key][1],v);
+    if(c.writeValueWithResponse) await c.writeValueWithResponse(data); else await c.writeValue(data);
+    st[key]=v; log(`W ${key} ← ${v}  [${hex(data)}]`);
+  });
+}
+const clampPWM=v=>Math.max(PWM_MIN,Math.min(PWM_MAX,v));
+
+// ---- Connect ----
+if(!navigator.bluetooth){$('noBt').classList.remove('hide'); $('btnConnect').disabled=true;}
+$('btnConnect').onclick=async()=>{
+  try{
+    const opts=$('optAll').checked?{acceptAllDevices:true,optionalServices:[SVC]}:{filters:[{namePrefix:'D1x'},{services:[SVC]}],optionalServices:[SVC]};
+    dev=await navigator.bluetooth.requestDevice(opts);
+    dev.addEventListener('gattserverdisconnected',onDisc);
+    $('connState').textContent='Connecting to '+(dev.name||dev.id)+' …';
+    const srv=await dev.gatt.connect();
+    const svc=await srv.getPrimaryService(SVC);
+    const list=await svc.getCharacteristics(); chars={};
+    const byUuid={}; list.forEach(c=>byUuid[c.uuid.toLowerCase()]=c);
+    for(const k in CH){ const c=byUuid[uuidOf(k)]; if(c) chars[k]=c; }
+    log(`Connected. ${list.length} characteristics; mapped ${Object.keys(chars).length}/${Object.keys(CH).length}`);
+    list.forEach(c=>log('  '+c.uuid));
+    $('connState').innerHTML='Connected to <b>'+(dev.name||'shifter')+'</b>';
+    $('btnConnect').classList.add('hide'); $('btnDisconnect').classList.remove('hide'); $('ui').classList.remove('hide');
+    await readAll();
+  }catch(e){ log('ERR '+e); $('connState').textContent='Connection failed: '+e.message; }
+};
+$('btnDisconnect').onclick=()=>dev&&dev.gatt.connected&&dev.gatt.disconnect();
+function onDisc(){ log('Disconnected'); $('connState').textContent='Disconnected.'; $('btnConnect').classList.remove('hide'); $('btnDisconnect').classList.add('hide'); $('ui').classList.add('hide'); chars={}; queue=Promise.resolve(); }
+
+const major=()=>{const m=/(\d+)\.(\d+)/.exec(st.ShifterFirmwareVersion||''); return m?+m[1]:0;};
+async function readAll(){
+  for(const k of ['ShifterFirmwareVersion','RemoteFirmwareVersion','BattShifter','BattRemote','ShiftBatteryVoltage','NumGears','CurrentGear','CurrentPWM','HomeGear','SwitchOrder','AutoShutDown','QuickShiftState','QuickShiftDelay','QuickShiftUp','QuickShiftDown','OvershootEnable','OvershootDownDistance','OvershootDownDelay','OvershootUpDistance','OvershootUpDelay']) read(k);
+  await queue;
+  if(major()>=1) await read('MotionThreshold'); else await read('LowPowerMode');
+  render();
+}
+$('btnRefresh').onclick=readAll;
+
+// ---- Render ----
+function render(){
+  const s=st, set=(id,v)=>{$(id).textContent=(v===undefined||v===null)?'–':v;};
+  set('sBattS', s.BattShifter!==undefined? s.BattShifter+' / 5':undefined);
+  set('sBattR', s.BattRemote!==undefined? s.BattRemote+' / 5':undefined);
+  set('sFwS', s.ShifterFirmwareVersion); set('sFwR', s.RemoteFirmwareVersion);
+  set('sVolt', s.ShiftBatteryVoltage? (s.ShiftBatteryVoltage/1000).toFixed(2)+' V':undefined);
+  set('sGears', s.NumGears); set('tGear', s.CurrentGear); set('tNum', s.NumGears);
+  set('tPos', s.CurrentPWM!==undefined? PWM_MAX-s.CurrentPWM : undefined);
+  const n=s.NumGears||0, bar=$('tBar');
+  if(bar.children.length!==n){bar.innerHTML=''; for(let i=0;i<n;i++) bar.appendChild(document.createElement('span'));}
+  [...bar.children].forEach((e,i)=>{e.className=(i+1===s.CurrentGear)?'on':(wizard&&wizard.has(i+1)?'set':'');});
+  $('tMode').textContent=wizard?'New setup':'Adjusting'; $('tMode').className='pill'+(wizard?' ok':'');
+  // settings
+  if(s.SwitchOrder!==undefined) $('setReverse').checked=s.SwitchOrder===1;
+  const hs=$('setHome'); if(n && hs.options.length!==n+1){hs.innerHTML='<option value="0">Off</option>'; for(let i=1;i<=n;i++) hs.innerHTML+=`<option value="${i}">Gear ${i}</option>`;}
+  if(s.HomeGear!==undefined) hs.value=s.HomeGear;
+  if(s.AutoShutDown!==undefined && document.activeElement!==$('setAsd')){$('setAsd').value=s.AutoShutDown; $('lblAsd').textContent=s.AutoShutDown;}
+  $('rowWake').classList.toggle('hide', major()<1);
+  if(s.MotionThreshold!==undefined && document.activeElement!==$('setWake')){$('setWake').value=s.MotionThreshold; $('lblWake').textContent=s.MotionThreshold;}
+  $('rowLpm').classList.toggle('hide', !(s.ShifterFirmwareVersion && major()<1));
+  if(s.LowPowerMode!==undefined) $('setLpm').checked=s.LowPowerMode===1;
+  for(const [sel,key] of [['qsUp','QuickShiftUp'],['qsDown','QuickShiftDown']]){const e=$(sel); if(!e.options.length) for(let i=0;i<=4;i++) e.innerHTML+=`<option>${i}</option>`; if(s[key]!==undefined) e.value=s[key];}
+  if(s.QuickShiftState!==undefined) $('qsOn').checked=s.QuickShiftState===1;
+  if(s.QuickShiftDelay!==undefined){$('qsDelay').value=s.QuickShiftDelay; $('lblQsDelay').textContent=s.QuickShiftDelay;}
+  $('cOvershoot').classList.toggle('hide', /0\.26$/.test((s.ShifterFirmwareVersion||'').match(/\d+\.\d+/)?.[0]||''));
+  if(s.OvershootEnable!==undefined) $('osOn').checked=s.OvershootEnable===1;
+  for(const [id,lbl,key] of [['osDD','lblOsDD','OvershootDownDistance'],['osDT','lblOsDT','OvershootDownDelay'],['osUD','lblOsUD','OvershootUpDistance'],['osUT','lblOsUT','OvershootUpDelay']])
+    if(s[key]!==undefined){$(id).value=s[key]; $(lbl).textContent=s[key];}
+  set('mShifts', s.ShiftCounter); set('mOdo', s.ShiftCounter!==undefined&&s.Odometer!==undefined? s.ShiftCounter+s.Odometer:undefined); set('mDate', s.LastResetDate);
+}
+
+// ---- Shift-point tuning (mirrors original app behaviour) ----
+let busy=false;
+async function guard(fn){ if(busy) return; busy=true; document.querySelectorAll('#cTune button').forEach(b=>b.disabled=true); try{await fn();}catch(e){log('ERR '+e);} finally{busy=false; document.querySelectorAll('#cTune button').forEach(b=>b.disabled=false);} }
+async function changeGear(step){
+  const n=st.NumGears, from=st.CurrentGear, prevPWM=st.CurrentPWM;
+  const g=Math.max(1,Math.min(n,from+step)); if(g===from) return;
+  await write('CurrentGear',g); await read('CurrentGear');
+  if(wizard && step>0 && !wizard.has(g)){ wizard.add(g); await write('CurrentPWM',prevPWM); }
+  await sleep(150); await read('CurrentPWM');
+}
+$('gUp').onclick=()=>guard(()=>changeGear(1));
+$('gDown').onclick=()=>guard(()=>changeGear(-1));
+// release = higher PWM, pull = lower PWM. Single steps pre-move 15 the other way (backlash take-up), net 5.
+const ADJ={r20:[20,0], r5:[20,-15], p5:[-20,15], p20:[-20,0]};
+document.querySelectorAll('[data-adj]').forEach(b=>b.onclick=()=>guard(async()=>{
+  const [step,over]=ADJ[b.dataset.adj], cur=st.CurrentPWM;
+  if(over) await write('CurrentPWM',clampPWM(cur+over));
+  await write('CurrentPWM',clampPWM(cur+step+over)); await read('CurrentPWM');
+}));
+
+// ---- Wizard ----
+const wzShow=i=>{for(let k=0;k<=4;k++) $('wz'+k).classList.toggle('hide',k!==i);};
+async function initMotor(){ await write('CurrentGear',1); await write('CurrentPWM',1900); await sleep(150); await write('CurrentPWM',1960); await read('CurrentPWM'); }
+$('wzStart').onclick=()=>{ $('wzGears').value=st.NumGears||11; wzShow(1); };
+$('wzCancel1').onclick=()=>wzShow(0);
+$('wz1Next').onclick=()=>guard(async()=>{
+  const n=Math.max(1,Math.min(20,+$('wzGears').value||11));
+  await write('NumGears',n); await write('CurrentGear',1); await write('CurrentPWM',2000);
+  await read('NumGears'); await sleep(300); await initMotor(); wizard=new Set([1]); render(); wzShow(2);
+});
+$('wzReinit').onclick=()=>guard(initMotor);
+$('wz2Next').onclick=()=>{ wzShow(3); $('cTune').scrollIntoView({behavior:'smooth'}); };
+$('wz3Done').onclick=()=>{ wizard=null; render(); wzShow(4); };
+$('wzClose').onclick=()=>wzShow(0);
+
+// ---- Settings ----
+$('setReverse').onchange=e=>{write('SwitchOrder',e.target.checked?1:0); read('SwitchOrder');};
+$('setHome').onchange=e=>{write('HomeGear',+e.target.value); read('HomeGear');};
+$('setAsd').oninput=e=>$('lblAsd').textContent=e.target.value;
+$('setWake').oninput=e=>$('lblWake').textContent=e.target.value;
+$('btnSaveAsd').onclick=async()=>{ await write('AutoShutDown',+$('setAsd').value); if(major()>=1) await write('MotionThreshold',+$('setWake').value); read('AutoShutDown'); if(major()>=1) read('MotionThreshold'); };
+$('setLpm').onchange=e=>{write('LowPowerMode',e.target.checked?1:0); read('LowPowerMode');};
+$('qsOn').onchange=e=>{write('QuickShiftState',e.target.checked?1:0); read('QuickShiftState');};
+$('qsDelay').oninput=e=>$('lblQsDelay').textContent=e.target.value;
+$('qsDelay').onchange=e=>{write('QuickShiftDelay',+e.target.value); read('QuickShiftDelay');};
+$('qsUp').onchange=e=>{write('QuickShiftUp',+e.target.value); read('QuickShiftUp');};
+$('qsDown').onchange=e=>{write('QuickShiftDown',+e.target.value); read('QuickShiftDown');};
+$('osOn').onchange=e=>{write('OvershootEnable',e.target.checked?1:0); read('OvershootEnable');};
+for(const [id,lbl,key] of [['osDD','lblOsDD','OvershootDownDistance'],['osDT','lblOsDT','OvershootDownDelay'],['osUD','lblOsUD','OvershootUpDistance'],['osUT','lblOsUT','OvershootUpDelay']]){
+  $(id).oninput=e=>$(lbl).textContent=e.target.value;
+  $(id).onchange=e=>{write(key,+e.target.value); read(key);};
+}
+
+// ---- Backup / restore ----
+function drawTable(){
+  const t=$('tblGears'); if(!backup){t.innerHTML='';return;}
+  t.innerHTML='<tr><th>Gear</th><th>Position</th><th>Raw</th></tr>'+backup.pwm.map((p,i)=>`<tr><td>${i+1}</td><td>${PWM_MAX-p}</td><td>${p}</td></tr>`).join('');
+}
+$('btnReadAll').onclick=()=>guard(async()=>{
+  const n=st.NumGears, orig=st.CurrentGear, pwm=[];
+  for(let g=1; g<=n; g++){ await write('CurrentGear',g); await sleep(250); pwm.push(await read('CurrentPWM')); }
+  await write('CurrentGear',orig); await sleep(250); await read('CurrentGear'); await read('CurrentPWM');
+  backup={device:dev.name, firmware:st.ShifterFirmwareVersion, date:new Date().toISOString(), numGears:n, pwm};
+  drawTable(); $('btnExport').disabled=false;
+});
+$('btnExport').onclick=()=>{
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+  a.download=`d1x-backup-${new Date().toISOString().slice(0,10)}.json`; a.click();
+};
+$('btnImport').onclick=()=>$('fileImport').click();
+$('fileImport').onchange=async e=>{
+  const f=e.target.files[0]; if(!f) return; e.target.value='';
+  let b; try{ b=JSON.parse(await f.text()); }catch(err){ alert('Not a valid backup file'); return; }
+  if(!Array.isArray(b.pwm) || b.pwm.length!==b.numGears || b.pwm.some(p=>p<PWM_MIN||p>PWM_MAX)){ alert('Backup file looks invalid'); return; }
+  if(!confirm(`Restore ${b.numGears} gear positions from ${b.date?.slice(0,10)||'file'}? The derailleur will move through every gear.`)) return;
+  guard(async()=>{
+    await write('NumGears',b.numGears);
+    for(let g=1; g<=b.numGears; g++){ await write('CurrentGear',g); await sleep(200); await write('CurrentPWM',b.pwm[g-1]); await sleep(150); }
+    await write('CurrentGear',1); await read('NumGears'); await read('CurrentGear'); await read('CurrentPWM');
+    backup=b; drawTable(); $('btnExport').disabled=false;
+  });
+};
+
+// ---- Maintenance ----
+$('cabStart').onclick=()=>guard(async()=>{
+  const g=st.CurrentGear; await read('CurrentPWM'); cable={gear:g,pwm:st.CurrentPWM};
+  log(`Cable change: saved gear ${g} position ${cable.pwm}`);
+  await write('CurrentPWM',PWM_MAX); $('cabStart').classList.add('hide'); $('cabDone').classList.remove('hide');
+});
+$('cabDone').onclick=()=>guard(async()=>{
+  if(cable){ await write('CurrentGear',cable.gear); await write('CurrentPWM',cable.pwm); await read('CurrentPWM'); cable=null; }
+  $('cabDone').classList.add('hide'); $('cabStart').classList.remove('hide');
+});
+$('btnPair').onclick=async()=>{ if(!confirm('Put the shifter into remote pairing mode? This disconnects the page.')) return; await write('Mode',1); };
+$('mRead').onclick=()=>{read('ShiftCounter'); read('Odometer'); read('LastResetDate');};
+$('mReset').onclick=async()=>{
+  await read('ShiftCounter'); await read('Odometer');
+  if(!confirm('Reset the shift counter? The total is kept.')) return;
+  const total=(st.ShiftCounter||0)+(st.Odometer||0);
+  await write('ShiftCounter',0); await write('Odometer',total); await write('LastResetDate',new Date());
+  read('ShiftCounter'); read('Odometer'); read('LastResetDate');
+};
+</script>
+</body>
+</html>
